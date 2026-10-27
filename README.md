@@ -80,7 +80,9 @@ El ID del workspace aparece en su URL, por ejemplo `https://app.fabric.microsoft
 
 El nombre `deploy_test.py` y el valor `environment="TEST"` no verifican qué ambiente representa un GUID: el destino real es el ID indicado. Confirmaremos que corresponde al TEST de laboratorio antes de usarlo.
 
-## 5. Paso actual: autenticación desde GitHub Actions
+## 5. Autenticación desde GitHub Actions (completada)
+
+El usuario ejecutó el workflow 01 y obtuvo `AUTH OK`. La automatización ya está también en `dev`. No es necesario repetir esta prueba ahora; el siguiente paso está en la sección 6.
 
 El usuario confirmó que este repositorio tiene un **Actions Secret** llamado `AZURE_CREDENTIALS`, con las claves `tenantId`, `clientId` y `clientSecret`. Debe contener los valores reales, no los textos de ejemplo.
 
@@ -99,7 +101,7 @@ La instalación local de `.venv` y `fabric-cicd` 1.4.0 ya fue comprobada. GitHub
 
 El workflow se llama **01 - Comprobar autenticacion Fabric**. Solo tiene el evento `workflow_dispatch`: no se inicia por push, pull request ni sincronización de Fabric. Tiene permisos de lectura del repositorio. Los permisos de GitHub y los del Service Principal en Fabric son independientes.
 
-### Qué debe hacer el usuario ahora
+### Cómo repetir la comprobación de autenticación si fuera necesario
 
 1. Revisar y llevar los archivos preparados a GitHub mediante su operación habitual de commit/push o PR. Deben estar el workflow, el script actualizado y `requirements.txt`, junto con los artefactos de `DataHub` ya existentes. Incluir también README y `.gitignore`.
 2. Para que aparezca el botón manual, el workflow debe existir en la **rama predeterminada del repositorio**. Para este laboratorio utilizaremos `main`; verificar en GitHub que siga siendo la predeterminada. Si se subió inicialmente a `dev`, incorporar estos archivos de automatización a `main` mediante un PR revisado. No mezclar cambios de reportes ajenos a esta preparación.
@@ -142,9 +144,63 @@ El programa no muestra el token y registra los campos del JSON para que GitHub l
 | `Authentication failed` | Tenant, aplicación y **Value** del secreto vigente; no usar Secret ID. |
 | `Cannot reach Microsoft Entra` | Conectividad del runner con Entra. |
 
-Compartir la salida de estado o el error, sin valores de credenciales. Una vez confirmado `AUTH OK`, prepararemos la comprobación de acceso a DataHub-Test y después su despliegue manual desde Actions. Este workflow no publica aunque la autenticación sea exitosa.
+Este workflow no publica aunque la autenticación sea exitosa. La comprobación de acceso a DataHub-Test se explica a continuación.
 
-## 6. Cómo sabremos que la prueba funcionó
+## 6. Paso actual: comprobar acceso de lectura a TEST
+
+Autenticarse responde «¿quién es esta aplicación?». Ahora comprobaremos «¿puede esta aplicación ver DataHub-Test?». Todavía no comprobaremos si puede publicar.
+
+El nuevo workflow **02 - Comprobar acceso a TEST** ejecuta `scripts/check_test_workspace.py`. Reutiliza el secreto `AZURE_CREDENTIALS` y realiza únicamente consultas GET a Fabric: obtener los datos del workspace y listar sus artefactos, incluyendo páginas adicionales si existen. Ambos endpoints admiten Service Principals y acceso de lectura. [Consultar workspace](https://learn.microsoft.com/en-us/rest/api/fabric/core/workspaces/get-workspace), [listar artefactos](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/list-items).
+
+### A. Configurar el destino en GitHub
+
+En el repositorio, abrir **Settings → Secrets and variables → Actions → Variables → New repository variable** y crear:
+
+| Nombre | Valor |
+| --- | --- |
+| `FABRIC_TEST_WORKSPACE_ID` | El GUID completo del workspace DataHub-Test, copiado de su URL. |
+
+Es una **Variable**, no un Secret: identifica el destino y no contiene una contraseña. Mantener `AZURE_CREDENTIALS` como Secret, sin modificarlo. No copiar la URL completa ni usar el ID de DEV, de un reporte o de un modelo. No transcribimos el GUID de la captura para evitar errores en su borde derecho.
+
+Esta variable tampoco es el archivo `parameter.yml`: aquí solo elegimos el workspace que vamos a consultar. No estamos configurando el binding entre reportes y modelos.
+
+### B. Incorporar y ejecutar los archivos manualmente
+
+1. Revisar estos cambios locales: `.github/workflows/check-fabric-test.yml`, `scripts/check_test_workspace.py` y este README.
+2. Incorporarlos a `dev` mediante el procedimiento Git habitual y luego llevar estos cambios de automatización a `main` mediante un PR revisado. No es necesario cambiar archivos de `DataHub`. Revisar que el PR no arrastre cambios de reportes pendientes de release.
+3. Mantener `main` como rama predeterminada de GitHub y `dev` como rama sincronizada con DataHub-Dev. El workflow debe estar en la rama predeterminada para aparecer en la ejecución manual.
+4. En **Actions**, abrir **02 - Comprobar acceso a TEST**, pulsar **Run workflow**, elegir **main** y confirmar la ejecución.
+5. Abrir el job **Leer DataHub-Test**, paso **Comprobar acceso de lectura a TEST**, y compartir su salida sin credenciales.
+
+El workflow solo tiene disparador manual: subir estos archivos no lo ejecuta. No hay que ejecutar un script de PowerShell ni cargar secretos en la computadora local. El asistente no realiza las operaciones Git ni las corridas reales.
+
+### C. Interpretar el resultado
+
+Si TEST continúa vacío, esperamos:
+
+```text
+Workspace name: "DataHub-Test"
+Workspace ID: <el ID configurado>
+Capacity ID (informational): <ID o valor no devuelto>
+Items found: 0
+READ ACCESS OK: TEST metadata and inventory retrieved. Deployment permissions are NOT checked.
+No deployment, deletion or data refresh was requested.
+```
+
+El script verifica que el nombre sea exactamente `DataHub-Test`. Si encuentra otro nombre, se detiene. Si encuentra artefactos, los lista y permite revisar el estado real antes del despliegue; no los modifica ni los elimina.
+
+| Resultado | Qué revisar |
+| --- | --- |
+| `Configure the Actions variable...` | Nombre de la variable y formato del GUID completo. |
+| `Expected DataHub-Test` | El GUID apunta a otro workspace o el nombre del workspace cambió. |
+| `HTTP 401` | Autenticación y aceptación del token por Fabric. |
+| `HTTP 403` | Acceso del Service Principal al workspace y configuración del tenant para usar las APIs de Fabric. |
+| `HTTP 404` | ID y tenant correctos; un recurso no accesible también puede no estar visible. |
+| `HTTP 429` | Límite temporal de solicitudes: esperar y repetir manualmente. |
+
+`READ ACCESS OK` demuestra lectura del workspace y su inventario. No demuestra permisos de escritura, disponibilidad de capacidad, aceptación de los modelos, binding ni refresh. El ID de capacidad se muestra solo como dato informativo. Con este resultado revisaremos los requisitos de publicación y prepararemos la primera ejecución selectiva de Interest Rates en TEST.
+
+## 7. Cómo sabremos que la prueba de publicación funcionó
 
 Antes del despliegue registraremos el inventario de TEST y, si Stocks Index ya existe, su estado inicial. Después comprobaremos:
 
@@ -156,7 +212,7 @@ Antes del despliegue registraremos el inventario de TEST y, si Stocks Index ya e
 
 Si TEST estaba vacío, esta prueba demuestra exclusión de Stocks Index, pero no demuestra todavía que un ítem existente queda intacto. Para ello estableceremos una base con ambos conjuntos y repetiremos una actualización selectiva de Interest Rates.
 
-## 7. Después de comprobar la publicación
+## 8. Después de comprobar la publicación
 
 | Etapa | Resultado esperado |
 | --- | --- |
@@ -165,7 +221,7 @@ Si TEST estaba vacío, esta prueba demuestra exclusión de Stocks Index, pero no
 | Base con ambos conjuntos | Cambiar Interest Rates y verificar que Stocks Index permanece intacto. |
 | Ramas `dev` y `main` (ya configuradas) | DEV sincroniza `dev`; `main` prepara candidatos de release. |
 | Tag y SHA | Identificar una versión concreta de los archivos. |
-| GitHub Actions (autenticación preparada) | Comprobar la identidad y luego incorporar el despliegue manual. |
+| GitHub Actions (autenticación comprobada) | Comprobar acceso a TEST con el workflow 02 y luego incorporar el despliegue manual. |
 | Aprobación y PROD de laboratorio | Publicar el mismo candidato probado, con autorización. |
 
 Un commit registra una versión; su SHA la identifica. Una rama puede avanzar a nuevos commits. Un tag asigna un nombre a un commit. En la opción 2, `dev` integra trabajo y `main` prepara releases; una versión seleccionada se despliega primero a TEST y después a PROD. [Opción 2 de Microsoft](https://learn.microsoft.com/en-us/fabric/cicd/manage-deployment#option-2---definition-based-deployments-from-a-shared-release-commit).
