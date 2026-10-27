@@ -1,0 +1,3 @@
+# Version used for this laboratory. azure-identity is included as a dependency.
+fabric-cicd==1.4.0
+
