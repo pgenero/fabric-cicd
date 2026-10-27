@@ -1,0 +1,33 @@
+name: "02 - Comprobar acceso a TEST"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-test:
+    name: Leer DataHub-Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Descargar los archivos del repositorio
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Preparar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements.txt
+
+      - name: Comprobar acceso de lectura a TEST
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+          FABRIC_TEST_WORKSPACE_ID: ${{ vars.FABRIC_TEST_WORKSPACE_ID }}
+        run: python scripts/check_test_workspace.py
