@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "Interest Rates"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "b8f1f211-00eb-4ed8-b02f-5fc87321fe2a"
+  }
+}

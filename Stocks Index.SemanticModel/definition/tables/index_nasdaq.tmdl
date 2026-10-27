@@ -1,0 +1,41 @@
+table index_nasdaq
+	lineageTag: c1e9de76-9e85-4323-b5b3-0d9f139217ca
+
+	column observation_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: d7080ada-a6bd-42ee-8c26-f78d3bb8b095
+		summarizeBy: none
+		sourceColumn: observation_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column NASDAQCOM
+		dataType: decimal
+		formatString: \$#,0.###############;(\$#,0.###############);\$#,0.###############
+		lineageTag: ca7913d1-83f1-44d6-859f-bbf5d27f34c0
+		summarizeBy: sum
+		sourceColumn: NASDAQCOM
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	partition index_nasdaq = m
+		mode: import
+		source = ```
+				// Source: https://fred.stlouisfed.org/series/PCU2122212122210 
+				let
+				    Source = Csv.Document(Web.Contents("https://fred.stlouisfed.org/graph/fredgraph.csv?bgcolor=%23ebf3fb&chart_type=line&drp=0&fo=open%20sans&graph_bgcolor=%23ffffff&height=450&mode=fred&recession_bars=on&txtcolor=%23444444&ts=12&tts=12&width=1320&nt=0&thu=0&trc=0&show_legend=yes&show_axis_titles=yes&show_tooltip=yes&id=NASDAQCOM&scale=left&cosd=1971-02-05&coed=2026-10-23&line_color=%230073e6&link_values=false&line_style=solid&mark_type=none&mw=3&lw=3&ost=-99999&oet=99999&mma=0&fml=a&fq=Daily%2C%20Close&fam=avg&fgst=lin&fgsnd=2020-02-01&line_index=1&transformation=lin&vintage_date=2026-10-25&revision_date=2026-10-25&nd=1971-02-05"),[Delimiter=",", Columns=2, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"observation_date", type date}, {"NASDAQCOM", Currency.Type}})
+				in
+				    #"Changed Type"
+				```
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

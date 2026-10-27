@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Stocks Index"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "c0d81737-07af-450d-8d40-74a9e818ba94"
+  }
+}

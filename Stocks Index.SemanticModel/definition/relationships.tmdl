@@ -1,0 +1,12 @@
+relationship 7bf040fb-0365-d115-0b94-d9ba74a28bb3
+	fromColumn: index_sp.observation_date
+	toColumn: dim_Calendar.Date
+
+relationship 442d3992-6e3e-2915-1581-d5e37454ac3e
+	fromColumn: index_nasdaq.observation_date
+	toColumn: dim_Calendar.Date
+
+relationship f8c3b7b8-9cad-14c3-5a15-b5cb7d6d8270
+	fromColumn: index_dowjones.observation_date
+	toColumn: dim_Calendar.Date
+

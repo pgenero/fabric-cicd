@@ -1,0 +1,22 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_QueryOrder = ["index_nasdaq","index_sp","index_dowjones"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table index_nasdaq
+ref table index_sp
+ref table dim_Calendar
+ref table index_dowjones
+
+ref cultureInfo en-US
+

@@ -1,0 +1,40 @@
+table mortgages_interest_rate
+	lineageTag: efcedc82-9c6f-4f36-b9d0-60c1f97766fd
+
+	column observation_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: be49cfe7-9dec-4ef8-b352-9db1e59d32ad
+		summarizeBy: none
+		sourceColumn: observation_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column MORTGAGE30US
+		dataType: double
+		lineageTag: c5484d47-2f26-497d-94d8-099b88853ae7
+		summarizeBy: sum
+		sourceColumn: MORTGAGE30US
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition mortgages_interest_rate = m
+		mode: import
+		source =
+				// https://fred.stlouisfed.org/series/MORTGAGE30US
+				// 30-Year Fixed Rate Mortgage Average in the United States
+				let
+				    Source = Csv.Document(Web.Contents("https://fred.stlouisfed.org/graph/fredgraph.csv?bgcolor=%23ebf3fb&chart_type=line&drp=0&fo=open%20sans&graph_bgcolor=%23ffffff&height=450&mode=fred&recession_bars=on&txtcolor=%23444444&ts=12&tts=12&width=1320&nt=0&thu=0&trc=0&show_legend=yes&show_axis_titles=yes&show_tooltip=yes&id=MORTGAGE30US&scale=left&cosd=1971-04-02&coed=2026-10-22&line_color=%230073e6&link_values=false&line_style=solid&mark_type=none&mw=3&lw=3&ost=-99999&oet=99999&mma=0&fml=a&fq=Weekly%2C%20Ending%20Thursday&fam=avg&fgst=lin&fgsnd=2020-02-01&line_index=1&transformation=lin&vintage_date=2026-10-27&revision_date=2026-10-27&nd=1971-04-02"),[Delimiter=",", Columns=2, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+				    #"Promoted Headers" = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Promoted Headers",{{"observation_date", type date}, {"MORTGAGE30US", type number}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

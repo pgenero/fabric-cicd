@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "Stocks Index"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "4f50d09d-ea47-48c0-a5ff-5d94b5c60141"
+  }
+}

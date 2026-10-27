@@ -1,0 +1,193 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "6de3ab14de932c9d8daa",
+  "position": {
+    "x": 60.833404056691847,
+    "y": 88.642960196893839,
+    "z": 0,
+    "height": 931.62013069676652,
+    "width": 1793.7163710430282,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "dim_Calendar"
+                    }
+                  },
+                  "Property": "Date"
+                }
+              },
+              "queryRef": "dim_Calendar.Date",
+              "nativeQueryRef": "Date",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "index_sp"
+                        }
+                      },
+                      "Property": "SP500"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(index_sp.SP500)",
+              "nativeQueryRef": "Sum of SP500"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "index_nasdaq"
+                        }
+                      },
+                      "Property": "NASDAQCOM"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(index_nasdaq.NASDAQCOM)",
+              "nativeQueryRef": "Sum of NASDAQCOM"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "index_dowjones"
+                        }
+                      },
+                      "Property": "DJIA"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(index_dowjones.DJIA)",
+              "nativeQueryRef": "Sum of DJIA"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "dim_Calendar"
+                  }
+                },
+                "Property": "Date"
+              }
+            },
+            "direction": "Ascending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "0dbfa0f88cce5acb90da",
+        "field": {
+          "Aggregation": {
+            "Expression": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "index_sp"
+                  }
+                },
+                "Property": "SP500"
+              }
+            },
+            "Function": 0
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "2ca46f5241119b6c0d67",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "dim_Calendar"
+              }
+            },
+            "Property": "Date"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "848042277b00471100e8",
+        "field": {
+          "Aggregation": {
+            "Expression": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "index_nasdaq"
+                  }
+                },
+                "Property": "NASDAQCOM"
+              }
+            },
+            "Function": 0
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "21e536025093ec4cbca8",
+        "field": {
+          "Aggregation": {
+            "Expression": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "index_dowjones"
+                  }
+                },
+                "Property": "DJIA"
+              }
+            },
+            "Function": 0
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

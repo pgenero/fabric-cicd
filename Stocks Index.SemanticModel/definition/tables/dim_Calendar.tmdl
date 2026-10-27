@@ -1,0 +1,18 @@
+table dim_Calendar
+	lineageTag: f1f13fde-a4e0-400e-b165-5d060254b314
+
+	column Date
+		formatString: General Date
+		lineageTag: a94cd166-1a40-43fb-8281-274e01f54c09
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Date]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dim_Calendar = calculated
+		mode: import
+		source = CALENDARAUTO()
+
+	annotation PBI_Id = e5250915b9524dc7948fb0082fd1505e
+

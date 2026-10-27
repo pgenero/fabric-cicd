@@ -1,0 +1,117 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "d229f2460c6ca65d9458",
+  "position": {
+    "x": 106.50455927051672,
+    "y": 102.12765957446808,
+    "z": 0,
+    "height": 817.02127659574467,
+    "width": 1706.9908814589664,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "mortgages_interest_rate"
+                    }
+                  },
+                  "Property": "observation_date"
+                }
+              },
+              "queryRef": "mortgages_interest_rate.observation_date",
+              "nativeQueryRef": "observation_date",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "mortgages_interest_rate"
+                        }
+                      },
+                      "Property": "MORTGAGE30US"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(mortgages_interest_rate.MORTGAGE30US)",
+              "nativeQueryRef": "Sum of MORTGAGE30US"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "mortgages_interest_rate"
+                  }
+                },
+                "Property": "observation_date"
+              }
+            },
+            "direction": "Ascending"
+          }
+        ],
+        "isDefaultSort": true
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "8373c37ed01012c4cb04",
+        "field": {
+          "Aggregation": {
+            "Expression": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "mortgages_interest_rate"
+                  }
+                },
+                "Property": "MORTGAGE30US"
+              }
+            },
+            "Function": 0
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "7e07f94c0c8893181004",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "mortgages_interest_rate"
+              }
+            },
+            "Property": "observation_date"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
+  }
+}
