@@ -2,7 +2,7 @@
 
 Este repositorio contiene el laboratorio de la opción 2: preparar una versión en Git, probarla en TEST y publicar esa misma versión en PROD después de una aprobación.
 
-La primera etapa es más pequeña: publicar **Interest Rates y su modelo en TEST**, manteniendo Stocks Index fuera del despliegue. Después automatizaremos esa operación. El primer workflow comprueba autenticación de forma manual; todavía no implementa releases, aprobación ni despliegue a producción.
+La primera etapa es más pequeña: publicar **Interest Rates y su modelo en TEST**, manteniendo Stocks Index fuera del despliegue. Autenticación y acceso de lectura ya fueron comprobados. El workflow 03 prepara la publicación automática iniciada manualmente por el usuario; todavía no implementa releases, aprobación ni despliegue a producción.
 
 ## 1. Qué tenemos
 
@@ -74,15 +74,15 @@ Estado confirmado por el usuario:
 - `DataHub-Test` y `DataHub-Prod` están vacíos y no tienen conexión Git.
 - Existe un Service Principal con Client ID y Secret, utilizado en el PoC anterior.
 
-Antes de publicar comprobaremos el ID de TEST, su capacidad y los permisos del Service Principal en ese nuevo workspace. Haber usado esa identidad en el PoC anterior no prueba que tenga acceso al nuevo TEST.
+El workflow 02 confirmó DataHub-Test con ID `9b918b42-1d3d-4ae3-97fb-89d061ad1f40`, inventario vacío y capacidad asignada con ID `2db82b68-be75-4ed0-bbdf-57d719aa53e6`. El primer intento devolvió 403 porque faltaba agregar el Service Principal al workspace; el usuario lo agregó y la segunda ejecución fue exitosa. Esto prueba lectura, no escritura ni disponibilidad de la capacidad para desplegar.
 
 El ID del workspace aparece en su URL, por ejemplo `https://app.fabric.microsoft.com/groups/<workspace-id>/list`. Es un identificador, no una contraseña.
 
-El nombre `deploy_test.py` y el valor `environment="TEST"` no verifican qué ambiente representa un GUID: el destino real es el ID indicado. Confirmaremos que corresponde al TEST de laboratorio antes de usarlo.
+El destino real es el ID indicado. Ahora `deploy_test.py --deploy` solo acepta el GUID de TEST confirmado arriba; un ID diferente o ausente detiene el programa antes de autenticarse. Es una restricción de este laboratorio, que revisaremos al preparar el despliegue a PROD.
 
 ## 5. Autenticación desde GitHub Actions (completada)
 
-El usuario ejecutó el workflow 01 y obtuvo `AUTH OK`. La automatización ya está también en `dev`. No es necesario repetir esta prueba ahora; el siguiente paso está en la sección 6.
+El usuario ejecutó el workflow 01 y obtuvo `AUTH OK`. La automatización ya está también en `dev`. No es necesario repetir esta prueba ahora; el paso actual está en la sección 7.
 
 El usuario confirmó que este repositorio tiene un **Actions Secret** llamado `AZURE_CREDENTIALS`, con las claves `tenantId`, `clientId` y `clientSecret`. Debe contener los valores reales, no los textos de ejemplo.
 
@@ -146,7 +146,9 @@ El programa no muestra el token y registra los campos del JSON para que GitHub l
 
 Este workflow no publica aunque la autenticación sea exitosa. La comprobación de acceso a DataHub-Test se explica a continuación.
 
-## 6. Paso actual: comprobar acceso de lectura a TEST
+## 6. Acceso de lectura a TEST (completado)
+
+El usuario ejecutó el workflow 02 y obtuvo `READ ACCESS OK` e `Items found: 0`. Las instrucciones siguientes quedan como referencia para repetir el diagnóstico.
 
 Autenticarse responde «¿quién es esta aplicación?». Ahora comprobaremos «¿puede esta aplicación ver DataHub-Test?». Todavía no comprobaremos si puede publicar.
 
@@ -200,7 +202,44 @@ El script verifica que el nombre sea exactamente `DataHub-Test`. Si encuentra ot
 
 `READ ACCESS OK` demuestra lectura del workspace y su inventario. No demuestra permisos de escritura, disponibilidad de capacidad, aceptación de los modelos, binding ni refresh. El ID de capacidad se muestra solo como dato informativo. Con este resultado revisaremos los requisitos de publicación y prepararemos la primera ejecución selectiva de Interest Rates en TEST.
 
-## 7. Cómo sabremos que la prueba de publicación funcionó
+## 7. Paso actual: primera publicación selectiva en TEST
+
+El workflow **03 - Publicar Interest Rates en TEST** publica el modelo y el reporte de Interest Rates desde los archivos del repositorio. No copia el contenido vivo de DEV. La lista de selección excluye Stocks Index, aunque sus archivos también estén en `main`.
+
+Es una operación automatizada con inicio manual: vos presionás Run workflow y GitHub ejecuta los pasos. Más adelante incorporaremos selección de release, aprobación y promoción del mismo candidato a PROD.
+
+### Antes de ejecutarlo
+
+1. En **DataHub-Test → Manage access**, comprobar que el Service Principal tenga rol **Contributor**, **Member** o **Admin**. Viewer alcanza para el workflow 02, pero no para crear reportes y modelos. No hace falta elevar Contributor a Admin para esta prueba.
+2. Conservar el Secret `AZURE_CREDENTIALS` y la Variable `FABRIC_TEST_WORKSPACE_ID`. Ya funcionaron en el workflow 02.
+3. Revisar e incorporar a `dev` el nuevo archivo `.github/workflows/deploy-interest-rates-test.yml`, el cambio en `scripts/deploy_test.py` y este README. Luego llevarlos a `main` mediante un PR revisado. Los dos conjuntos de artefactos ya existentes deben seguir disponibles en `DataHub`; no hace falta modificarlos para esta prueba.
+4. En GitHub, abrir **Actions → 03 - Publicar Interest Rates en TEST → Run workflow**, elegir **main** e iniciar la ejecución. Esta vez sí se crearán o actualizarán artefactos en TEST.
+
+No hay que ejecutar PowerShell. La conexión DEV–`dev` y la ausencia de conexión Git en TEST/PROD se mantienen.
+
+### Qué hace el workflow
+
+1. Exige `main` como rama de ejecución y registra su commit SHA, el identificador de esa versión. Descarga ese SHA concreto aunque la rama avance durante la corrida.
+2. Comprueba los archivos locales y muestra el par seleccionado.
+3. Consulta DataHub-Test y registra el inventario previo. Si falla esta consulta, no continúa a publicar.
+4. Llama a `fabric-cicd==1.4.0` con `items_to_include` limitado a `Interest Rates.SemanticModel` e `Interest Rates.Report`. Esta selección usa la funcionalidad experimental documentada en la sección 3.
+5. Consulta el inventario posterior. Esperamos dos ítems: el modelo y el reporte de Interest Rates. Este paso lista el resultado; la comprobación funcional se hace abajo.
+
+El workflow evita dos publicaciones simultáneas de este workflow en TEST y no cancela una publicación en curso cuando se solicita otra. No ejecuta eliminación de huérfanos ni refresh.
+
+Para este par no necesitamos `parameter.yml`: el reporte referencia su modelo mediante `byPath`, y la librería resuelve el vínculo durante el despliegue. La conexión del modelo con FRED y sus credenciales son otro asunto; se comprueban al cargar datos.
+
+### Qué revisar y compartir después
+
+- El resultado del paso **Publicar exclusivamente Interest Rates y su modelo**.
+- La salida de **Consultar inventario despues de publicar**. Si TEST seguía vacío, esperamos `Items found: 2` y ningún Stocks Index.
+- En Fabric, abrir **DataHub-Test → Lineage / Linaje** y verificar que Interest Rates utiliza el modelo del mismo workspace. Registrar los IDs de ambos ítems de TEST; no deben confundirse con los de DEV.
+
+Después revisaremos las conexiones del modelo y su refresh. Un workflow verde demuestra que finalizaron sus operaciones; todavía no demuestra que el gráfico tenga datos. Si falla durante la publicación, puede haber quedado creado el modelo aunque no el reporte: no existe rollback automático. Compartir el paso y el error antes de repetir o borrar contenido.
+
+El SHA queda registrado para trazabilidad de esta corrida. Todavía falta formalizar el candidato de release (SHA, selección y configuración), fijar dependencias y promover ese mismo candidato a PROD. No presentaremos esta primera publicación como la implementación completa de Option 2.
+
+## 8. Cómo sabremos que la prueba de publicación funcionó
 
 Antes del despliegue registraremos el inventario de TEST y, si Stocks Index ya existe, su estado inicial. Después comprobaremos:
 
@@ -212,7 +251,7 @@ Antes del despliegue registraremos el inventario de TEST y, si Stocks Index ya e
 
 Si TEST estaba vacío, esta prueba demuestra exclusión de Stocks Index, pero no demuestra todavía que un ítem existente queda intacto. Para ello estableceremos una base con ambos conjuntos y repetiremos una actualización selectiva de Interest Rates.
 
-## 8. Después de comprobar la publicación
+## 9. Después de comprobar la publicación
 
 | Etapa | Resultado esperado |
 | --- | --- |
@@ -221,7 +260,7 @@ Si TEST estaba vacío, esta prueba demuestra exclusión de Stocks Index, pero no
 | Base con ambos conjuntos | Cambiar Interest Rates y verificar que Stocks Index permanece intacto. |
 | Ramas `dev` y `main` (ya configuradas) | DEV sincroniza `dev`; `main` prepara candidatos de release. |
 | Tag y SHA | Identificar una versión concreta de los archivos. |
-| GitHub Actions (autenticación comprobada) | Comprobar acceso a TEST con el workflow 02 y luego incorporar el despliegue manual. |
+| GitHub Actions (autenticación y lectura comprobadas) | Ejecutar manualmente el workflow 03 para la primera publicación selectiva. |
 | Aprobación y PROD de laboratorio | Publicar el mismo candidato probado, con autorización. |
 
 Un commit registra una versión; su SHA la identifica. Una rama puede avanzar a nuevos commits. Un tag asigna un nombre a un commit. En la opción 2, `dev` integra trabajo y `main` prepara releases; una versión seleccionada se despliega primero a TEST y después a PROD. [Opción 2 de Microsoft](https://learn.microsoft.com/en-us/fabric/cicd/manage-deployment#option-2---definition-based-deployments-from-a-shared-release-commit).

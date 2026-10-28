@@ -9,6 +9,8 @@ from uuid import UUID
 
 
 REPOSITORY_DIRECTORY = Path(__file__).resolve().parents[1] / "DataHub"
+# Confirmed by the user's successful workflow 02. This script targets this lab only.
+TEST_WORKSPACE_ID = "9b918b42-1d3d-4ae3-97fb-89d061ad1f40"
 SOLUTIONS = {
     "interest-rates": "Interest Rates",
     "stocks-index": "Stocks Index",
@@ -100,8 +102,12 @@ def main() -> int:
 
     try:
         items = selected_items(args.solution)
-        if args.workspace_id and UUID(args.workspace_id).int == 0:
-            raise ValueError("The workspace ID cannot be an all-zero UUID.")
+        if args.workspace_id:
+            args.workspace_id = str(UUID(args.workspace_id.strip()))
+            if UUID(args.workspace_id).int == 0:
+                raise ValueError("The workspace ID cannot be an all-zero UUID.")
+        if args.deploy and args.workspace_id != TEST_WORKSPACE_ID:
+            raise ValueError("Deployment requires the confirmed DataHub-Test workspace ID. No authentication or deployment attempted.")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
