@@ -1,8 +1,18 @@
-name: "03 - Publicar Interest Rates en TEST"
+name: "03 - Publicar seleccion en TEST"
+run-name: "TEST - ${{ inputs.solution }}"
 
-# First laboratory publication. The user starts this workflow manually.
+# Publish one report/model pair, selected manually by the user.
 on:
   workflow_dispatch:
+    inputs:
+      solution:
+        description: "Solucion a publicar (reporte y modelo juntos)"
+        required: true
+        type: choice
+        default: interest-rates
+        options:
+          - interest-rates
+          - stocks-index
 
 permissions:
   contents: read
@@ -13,9 +23,11 @@ concurrency:
 
 jobs:
   deploy-test:
-    name: Publicar Interest Rates y su modelo
+    name: Publicar reporte y modelo seleccionados
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      SELECTED_SOLUTION: ${{ inputs.solution }}
 
     steps:
       - name: Comprobar rama y registrar version
@@ -26,9 +38,9 @@ jobs:
             exit 1
           fi
           echo "Source commit: $GITHUB_SHA"
-          echo "Selected solution: Interest Rates (SemanticModel + Report)"
+          echo "Selected solution: $SELECTED_SOLUTION (SemanticModel + Report)"
           echo "Source commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-          echo "Target: DataHub-Test. Selection: Interest Rates model and report." >> "$GITHUB_STEP_SUMMARY"
+          echo "Target: DataHub-Test. Selection: $SELECTED_SOLUTION (SemanticModel + Report)." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Descargar la version seleccionada
         uses: actions/checkout@v4
@@ -45,7 +57,7 @@ jobs:
         run: python -m pip install -r requirements.txt
 
       - name: Revisar seleccion local
-        run: python scripts/deploy_test.py --solution interest-rates
+        run: python scripts/deploy_test.py --solution "$SELECTED_SOLUTION"
 
       - name: Comprobar destino e inventario antes de publicar
         env:
@@ -53,13 +65,13 @@ jobs:
           FABRIC_TEST_WORKSPACE_ID: ${{ vars.FABRIC_TEST_WORKSPACE_ID }}
         run: python scripts/check_test_workspace.py
 
-      - name: Publicar exclusivamente Interest Rates y su modelo
+      - name: Publicar exclusivamente el par seleccionado
         env:
           AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
           FABRIC_TEST_WORKSPACE_ID: ${{ vars.FABRIC_TEST_WORKSPACE_ID }}
         run: >-
           python scripts/deploy_test.py
-          --solution interest-rates
+          --solution "$SELECTED_SOLUTION"
           --workspace-id "$FABRIC_TEST_WORKSPACE_ID"
           --deploy
 

@@ -2,7 +2,7 @@
 
 Este repositorio contiene el laboratorio de la opción 2: preparar una versión en Git, probarla en TEST y publicar esa misma versión en PROD después de una aprobación.
 
-La primera etapa es más pequeña: publicar **Interest Rates y su modelo en TEST**, manteniendo Stocks Index fuera del despliegue. Autenticación y acceso de lectura ya fueron comprobados. El workflow 03 prepara la publicación automática iniciada manualmente por el usuario; todavía no implementa releases, aprobación ni despliegue a producción.
+La primera prueba de **Interest Rates y su modelo en TEST** quedó validada por el usuario: inventario de dos ítems, binding a TEST, refresh y reporte correctos. El refresh requirió tomar ownership y asignar manualmente una conexión existente; automatizar esa configuración queda para una fase posterior. El paso actual es preparar una base con ambos conjuntos en TEST (sección 9). Todavía no implementamos releases, aprobación ni despliegue a producción.
 
 ## 1. Qué tenemos
 
@@ -71,8 +71,9 @@ Estado confirmado por el usuario:
 
 - `DataHub-Dev` está conectado a este repositorio, rama `dev`, carpeta `/DataHub`.
 - `main` no tiene sincronización con Fabric; se reserva para releases.
-- `DataHub-Test` y `DataHub-Prod` están vacíos y no tienen conexión Git.
-- Existe un Service Principal con Client ID y Secret, utilizado en el PoC anterior.
+- `DataHub-Test` y `DataHub-Prod` no tienen conexión Git. TEST comenzó vacío y ahora contiene el reporte y modelo de Interest Rates; PROD continúa vacío según el último estado informado.
+- El Service Principal `PBI_ServicePrincipal` tiene rol Admin en los tres workspaces, confirmado por el usuario el 2026-10-28.
+- `main` y `dev` tienen los mismos workflows y código base de tareas, según confirmó el usuario.
 
 El workflow 02 confirmó DataHub-Test con ID `9b918b42-1d3d-4ae3-97fb-89d061ad1f40`, inventario vacío y capacidad asignada con ID `2db82b68-be75-4ed0-bbdf-57d719aa53e6`. El primer intento devolvió 403 porque faltaba agregar el Service Principal al workspace; el usuario lo agregó y la segunda ejecución fue exitosa. Esto prueba lectura, no escritura ni disponibilidad de la capacidad para desplegar.
 
@@ -82,7 +83,7 @@ El destino real es el ID indicado. Ahora `deploy_test.py --deploy` solo acepta e
 
 ## 5. Autenticación desde GitHub Actions (completada)
 
-El usuario ejecutó el workflow 01 y obtuvo `AUTH OK`. La automatización ya está también en `dev`. No es necesario repetir esta prueba ahora; el paso actual está en la sección 7.
+El usuario ejecutó el workflow 01 y obtuvo `AUTH OK`. La automatización ya está también en `dev`. No es necesario repetir esta prueba ahora; el paso actual está en la sección 9.
 
 El usuario confirmó que este repositorio tiene un **Actions Secret** llamado `AZURE_CREDENTIALS`, con las claves `tenantId`, `clientId` y `clientSecret`. Debe contener los valores reales, no los textos de ejemplo.
 
@@ -202,9 +203,11 @@ El script verifica que el nombre sea exactamente `DataHub-Test`. Si encuentra ot
 
 `READ ACCESS OK` demuestra lectura del workspace y su inventario. No demuestra permisos de escritura, disponibilidad de capacidad, aceptación de los modelos, binding ni refresh. El ID de capacidad se muestra solo como dato informativo. Con este resultado revisaremos los requisitos de publicación y prepararemos la primera ejecución selectiva de Interest Rates en TEST.
 
-## 7. Paso actual: primera publicación selectiva en TEST
+## 7. Primera publicación en TEST (ejecutada; binding confirmado)
 
-El workflow **03 - Publicar Interest Rates en TEST** publica el modelo y el reporte de Interest Rates desde los archivos del repositorio. No copia el contenido vivo de DEV. La lista de selección excluye Stocks Index, aunque sus archivos también estén en `main`.
+El 2026-10-28 el usuario informó que el workflow 03 terminó correctamente. La captura de linaje muestra `Interest Rates.SemanticModel` en DataHub-Test conectado a `Interest Rates.Report` en DataHub-Test. El usuario confirmó después el inventario, el refresh y el gráfico; la intervención sobre ownership y conexión queda registrada en la sección 8.
+
+La primera ejecución se realizó con el nombre **03 - Publicar Interest Rates en TEST** y selección fija de Interest Rates. Ahora el mismo archivo de workflow se muestra como **03 - Publicar seleccion en TEST** y permite elegir uno de los dos pares. Publica desde los archivos del repositorio; no copia el contenido vivo de DEV. Esta sección describe la primera prueba, con `solution=interest-rates`.
 
 Es una operación automatizada con inicio manual: vos presionás Run workflow y GitHub ejecuta los pasos. Más adelante incorporaremos selección de release, aprobación y promoción del mismo candidato a PROD.
 
@@ -213,7 +216,7 @@ Es una operación automatizada con inicio manual: vos presionás Run workflow y 
 1. En **DataHub-Test → Manage access**, comprobar que el Service Principal tenga rol **Contributor**, **Member** o **Admin**. Viewer alcanza para el workflow 02, pero no para crear reportes y modelos. No hace falta elevar Contributor a Admin para esta prueba.
 2. Conservar el Secret `AZURE_CREDENTIALS` y la Variable `FABRIC_TEST_WORKSPACE_ID`. Ya funcionaron en el workflow 02.
 3. Revisar e incorporar a `dev` el nuevo archivo `.github/workflows/deploy-interest-rates-test.yml`, el cambio en `scripts/deploy_test.py` y este README. Luego llevarlos a `main` mediante un PR revisado. Los dos conjuntos de artefactos ya existentes deben seguir disponibles en `DataHub`; no hace falta modificarlos para esta prueba.
-4. En GitHub, abrir **Actions → 03 - Publicar Interest Rates en TEST → Run workflow**, elegir **main** e iniciar la ejecución. Esta vez sí se crearán o actualizarán artefactos en TEST.
+4. Para repetir esa primera prueba con el workflow actual, abrir **Actions → 03 - Publicar seleccion en TEST → Run workflow**, elegir **main** y `solution=interest-rates`. Esto creará o actualizará el par en TEST. Para el paso actual, seguir la sección 9 y seleccionar `stocks-index`.
 
 No hay que ejecutar PowerShell. La conexión DEV–`dev` y la ausencia de conexión Git en TEST/PROD se mantienen.
 
@@ -231,7 +234,7 @@ Para este par no necesitamos `parameter.yml`: el reporte referencia su modelo me
 
 ### Qué revisar y compartir después
 
-- El resultado del paso **Publicar exclusivamente Interest Rates y su modelo**.
+- El resultado del paso de publicación, ahora llamado **Publicar exclusivamente el par seleccionado**.
 - La salida de **Consultar inventario despues de publicar**. Si TEST seguía vacío, esperamos `Items found: 2` y ningún Stocks Index.
 - En Fabric, abrir **DataHub-Test → Lineage / Linaje** y verificar que Interest Rates utiliza el modelo del mismo workspace. Registrar los IDs de ambos ítems de TEST; no deben confundirse con los de DEV.
 
@@ -239,30 +242,81 @@ Después revisaremos las conexiones del modelo y su refresh. Un workflow verde d
 
 El SHA queda registrado para trazabilidad de esta corrida. Todavía falta formalizar el candidato de release (SHA, selección y configuración), fijar dependencias y promover ese mismo candidato a PROD. No presentaremos esta primera publicación como la implementación completa de Option 2.
 
-## 8. Cómo sabremos que la prueba de publicación funcionó
+## 8. Datos y visualización en TEST (validados con configuración manual)
 
-Antes del despliegue registraremos el inventario de TEST y, si Stocks Index ya existe, su estado inicial. Después comprobaremos:
+El usuario confirmó el inventario de únicamente Interest Rates (reporte y modelo), el refresh exitoso y el reporte correcto. El modelo recién publicado tenía ownership de `PBI_ServicePrincipal` y mostraba una Personal Cloud Connection. Según la comprobación del usuario, esa configuración impedía el refresh. El usuario tomó control del modelo y lo asignó a una conexión ya existente para el origen; después el refresh y el reporte funcionaron.
 
-1. Interest Rates aparece como reporte y como modelo semántico.
-2. El reporte utiliza el modelo de TEST.
-3. Stocks Index no aparece si antes no existía; si existía, sus definiciones no se modificaron por esta publicación.
-4. Las conexiones de datos están configuradas y el refresh de Interest Rates termina correctamente.
-5. El gráfico muestra datos.
+Por tanto, no registramos el refresh como validado bajo ownership del Service Principal ni la configuración de conexiones como automatizada. Se difiere expresamente a una fase posterior: permisos de la conexión, asignación automática al modelo y operación con la identidad de despliegue. No necesitamos resolverlo para continuar la prueba de selección de artefactos.
+
+Las instrucciones siguientes quedan como referencia de la validación realizada.
+
+El modelo usa Import y consulta un CSV de FRED mediante `Web.Contents`. El workflow publica definiciones y no solicita refresh. Para cargar los datos se necesita una actualización del modelo semántico; actualizar la página del navegador no realiza esa operación. [Actualización de datos en Power BI](https://learn.microsoft.com/en-us/power-bi/connect-data/refresh-data).
+
+### Comprobación manual del usuario
+
+1. En el inventario completo de **DataHub-Test**, comprobar que aparecen únicamente el modelo y el reporte de Interest Rates, sin Stocks Index.
+2. En la fila de **Interest Rates de tipo Semantic model**, abrir `…` y elegir **Refresh now / Actualizar ahora**. Si ya ejecutaste un refresh, alcanza con revisar su resultado en el historial.
+3. Consultar **Refresh history / Historial de actualizaciones** y esperar a que termine. Registrar si finaliza correctamente o copiar el mensaje del error.
+4. Si termina correctamente, abrir el **reporte** Interest Rates y comprobar que el gráfico muestra datos sin errores. El modelo local limita la consulta a fechas concretas (incluye `coed=2026-10-22`); no exigimos que aparezca una observación con la fecha de hoy.
+
+Si aparece un problema de conexión o credenciales, abrir **Semantic model → Settings → Gateway and cloud connections** y revisar también **Data source credentials**, si está disponible. Compartir el mensaje y el estado de la conexión antes de cambiar la configuración. Si la interfaz exige **Take over / Tomar control**, informar ese detalle antes de usarlo: cambiaría el propietario y debemos decidir cómo mantener la operación con el Service Principal. [Conexiones cloud de modelos semánticos](https://learn.microsoft.com/en-us/power-bi/connect-data/service-connect-cloud-data-sources).
+
+El secreto `AZURE_CREDENTIALS` autentica la aplicación que publica en Fabric; no es una credencial para el sitio FRED. Si falta una conexión del modelo al origen, la trataremos como configuración del entorno y documentaremos cómo automatizar su asociación. La verificación manual actual no sustituye ese objetivo de automatización.
+
+No hace falta volver a ejecutar el workflow 03 ni hacer cambios de reportes para esta comprobación. El único cambio local de esta etapa es este README, que el usuario puede versionar con su operación habitual.
+
+### Criterios de cierre de la primera prueba
+
+1. Interest Rates aparece como reporte y como modelo semántico (confirmado).
+2. El reporte utiliza el modelo de TEST (confirmado por linaje).
+3. Stocks Index no aparece en TEST (confirmado; antes no existía).
+4. El refresh de Interest Rates termina correctamente después de configurar la conexión y cambiar ownership manualmente (confirmado).
+5. El gráfico muestra datos (confirmado).
 
 Si TEST estaba vacío, esta prueba demuestra exclusión de Stocks Index, pero no demuestra todavía que un ítem existente queda intacto. Para ello estableceremos una base con ambos conjuntos y repetiremos una actualización selectiva de Interest Rates.
 
-## 9. Después de comprobar la publicación
+## 9. Paso actual: preparar la base con ambos conjuntos
+
+Ya demostramos que se puede publicar un par y excluir el otro en un workspace vacío. Ahora necesitamos que ambos existan en TEST para probar una actualización selectiva sobre contenido existente.
+
+El workflow 03 agrega un selector `solution` con dos opciones. El script de Python ya soportaba ambas; no se modifica en esta etapa.
+
+| Valor de `solution` | Artefactos seleccionados |
+| --- | --- |
+| `interest-rates` | Interest Rates.SemanticModel y Interest Rates.Report |
+| `stocks-index` | Stocks Index.SemanticModel y Stocks Index.Report |
+
+Solo se puede seleccionar un par por ejecución. La selección se registra junto al SHA. No hay opción de publicar todos los ítems ni se ejecuta eliminación de huérfanos. El archivo mantiene el nombre `deploy-interest-rates-test.yml` para conservar el workflow existente; su nombre visible en Actions pasa a ser **03 - Publicar seleccion en TEST**.
+
+### Qué debe hacer el usuario ahora
+
+1. Incorporar a `dev` y después a `main`, mediante el procedimiento Git habitual, los cambios de `.github/workflows/deploy-interest-rates-test.yml` y este README. No hay cambios nuevos en el script ni en `DataHub` para esta etapa.
+2. Abrir **Actions → 03 - Publicar seleccion en TEST → Run workflow**. Elegir rama **main** y cambiar explícitamente `solution` a **stocks-index**; el valor predeterminado sigue siendo `interest-rates`.
+3. Ejecutar y comprobar que **Revisar seleccion local** muestra solo `Stocks Index.SemanticModel` y `Stocks Index.Report`.
+4. Revisar el inventario posterior: esperamos **cuatro artefactos**, dos de Interest Rates y dos de Stocks Index. Guardar la salida con los nombres e IDs y el SHA de esta corrida.
+5. Revisar el linaje de Stocks Index: su reporte debe apuntar al modelo de TEST. Comprobar también que Interest Rates sigue abriendo y mostrando sus datos.
+
+Esta publicación no selecciona Interest Rates. No hace falta configurar todavía el refresh de Stocks Index para establecer una base de sus definiciones; si luego queremos comparar su gráfico, primero cargaremos sus datos. La automatización de conexiones sigue pendiente como acordamos.
+
+### Prueba posterior, cuando la base esté confirmada
+
+Registraremos una referencia de las definiciones de Stocks Index en TEST antes de modificar Interest Rates. Prepararemos un cambio visible en Interest Rates, lo llevaremos por `dev` y `main`, y publicaremos solo `interest-rates`. Compararemos las definiciones de Stocks Index antes y después; contar cuatro ítems o conservar los mismos IDs no basta para demostrar que no hubo cambios. También revisaremos el comportamiento de ownership y conexiones de Interest Rates al actualizarlo, sin asumir que se conserva o se restablece automáticamente.
+
+La comprobación de esta base todavía no demuestra por sí sola la actualización selectiva ni la promoción de una release a PROD. Es el requisito para realizar esa prueba con evidencia.
+
+## 10. Próximas etapas
 
 | Etapa | Resultado esperado |
 | --- | --- |
 | Selección local | Entender exactamente qué dos ítems se publicarían. |
-| Publicación en TEST | Comprobar selección, binding y refresh reales. |
+| Publicación en TEST (validada) | Inventario, binding y reporte correctos; refresh validado después de configurar conexión y ownership manualmente. |
 | Base con ambos conjuntos | Cambiar Interest Rates y verificar que Stocks Index permanece intacto. |
 | Ramas `dev` y `main` (ya configuradas) | DEV sincroniza `dev`; `main` prepara candidatos de release. |
 | Tag y SHA | Identificar una versión concreta de los archivos. |
-| GitHub Actions (autenticación y lectura comprobadas) | Ejecutar manualmente el workflow 03 para la primera publicación selectiva. |
+| Conexiones y ownership (diferido) | Automatizar la asignación de conexión y validar refresh con la identidad prevista para operar el modelo. |
+| GitHub Actions (primera publicación ejecutada) | Mantener ejecuciones manuales del usuario mientras construimos la automatización. |
 | Aprobación y PROD de laboratorio | Publicar el mismo candidato probado, con autorización. |
 
 Un commit registra una versión; su SHA la identifica. Una rama puede avanzar a nuevos commits. Un tag asigna un nombre a un commit. En la opción 2, `dev` integra trabajo y `main` prepara releases; una versión seleccionada se despliega primero a TEST y después a PROD. [Opción 2 de Microsoft](https://learn.microsoft.com/en-us/fabric/cicd/manage-deployment#option-2---definition-based-deployments-from-a-shared-release-commit).
 
-El usuario creó `dev` desde `main` y conectó `DataHub-Dev` a `dev` en `/DataHub`. Antes de la primera publicación, el usuario comprobará la rama y versión locales elegidas para la prueba. El script local publica los archivos presentes en disco: todavía no garantiza una versión inmutable ni sustituye el futuro manifiesto de release.
+El usuario creó `dev` desde `main` y conectó `DataHub-Dev` a `dev` en `/DataHub`. El workflow 03 descarga y registra el SHA de su ejecución. Invocar el script local directamente publica los archivos presentes en disco. Todavía falta formalizar y promover un mismo candidato con su selección y configuración mediante un manifiesto de release.
