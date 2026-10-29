@@ -2,7 +2,7 @@
 
 Este repositorio contiene el laboratorio de la opción 2: preparar una versión en Git, probarla en TEST y publicar esa misma versión en PROD después de una aprobación.
 
-La primera prueba de **Interest Rates y su modelo en TEST** quedó validada por el usuario: inventario de dos ítems, binding a TEST, refresh y reporte correctos. El refresh requirió tomar ownership y asignar manualmente una conexión existente; automatizar esa configuración queda para una fase posterior. El paso actual es preparar una base con ambos conjuntos en TEST (sección 9). Todavía no implementamos releases, aprobación ni despliegue a producción.
+La primera prueba de **Interest Rates y su modelo en TEST** quedó validada por el usuario: inventario de dos ítems, binding a TEST, refresh y reporte correctos. El refresh requirió tomar ownership y asignar manualmente una conexión existente; automatizar esa configuración queda para una fase posterior. La base con ambos pares ya está confirmada: cuatro artefactos y linaje correcto de Stocks Index. El paso actual es comprobar una actualización selectiva (sección 10). Todavía no implementamos releases, aprobación ni despliegue a producción.
 
 ## 1. Qué tenemos
 
@@ -71,7 +71,7 @@ Estado confirmado por el usuario:
 
 - `DataHub-Dev` está conectado a este repositorio, rama `dev`, carpeta `/DataHub`.
 - `main` no tiene sincronización con Fabric; se reserva para releases.
-- `DataHub-Test` y `DataHub-Prod` no tienen conexión Git. TEST comenzó vacío y ahora contiene el reporte y modelo de Interest Rates; PROD continúa vacío según el último estado informado.
+- `DataHub-Test` y `DataHub-Prod` no tienen conexión Git. TEST comenzó vacío y ahora contiene ambos pares (Interest Rates y Stocks Index), cuatro artefactos confirmados por el usuario; PROD continúa vacío según el último estado informado.
 - El Service Principal `PBI_ServicePrincipal` tiene rol Admin en los tres workspaces, confirmado por el usuario el 2026-10-28.
 - `main` y `dev` tienen los mismos workflows y código base de tareas, según confirmó el usuario.
 
@@ -83,7 +83,7 @@ El destino real es el ID indicado. Ahora `deploy_test.py --deploy` solo acepta e
 
 ## 5. Autenticación desde GitHub Actions (completada)
 
-El usuario ejecutó el workflow 01 y obtuvo `AUTH OK`. La automatización ya está también en `dev`. No es necesario repetir esta prueba ahora; el paso actual está en la sección 9.
+El usuario ejecutó el workflow 01 y obtuvo `AUTH OK`. La automatización ya está también en `dev`. No es necesario repetir esta prueba ahora; el paso actual está en la sección 10.
 
 El usuario confirmó que este repositorio tiene un **Actions Secret** llamado `AZURE_CREDENTIALS`, con las claves `tenantId`, `clientId` y `clientSecret`. Debe contener los valores reales, no los textos de ejemplo.
 
@@ -275,7 +275,9 @@ No hace falta volver a ejecutar el workflow 03 ni hacer cambios de reportes para
 
 Si TEST estaba vacío, esta prueba demuestra exclusión de Stocks Index, pero no demuestra todavía que un ítem existente queda intacto. Para ello estableceremos una base con ambos conjuntos y repetiremos una actualización selectiva de Interest Rates.
 
-## 9. Paso actual: preparar la base con ambos conjuntos
+## 9. Base con ambos conjuntos (confirmada)
+
+El usuario ejecutó correctamente el workflow 03 con `stocks-index` y confirmó cuatro artefactos en TEST y el linaje correcto de Stocks Index. No se ha confirmado el refresh de Stocks Index, que no es necesario para comparar sus definiciones. Las instrucciones de esta sección documentan la preparación ya realizada.
 
 Ya demostramos que se puede publicar un par y excluir el otro en un workspace vacío. Ahora necesitamos que ambos existan en TEST para probar una actualización selectiva sobre contenido existente.
 
@@ -304,13 +306,70 @@ Registraremos una referencia de las definiciones de Stocks Index en TEST antes d
 
 La comprobación de esta base todavía no demuestra por sí sola la actualización selectiva ni la promoción de una release a PROD. Es el requisito para realizar esa prueba con evidencia.
 
-## 10. Próximas etapas
+## 10. Paso actual: actualizar Interest Rates y comparar Stocks Index
+
+Esta prueba agrega **04 - Verificar actualizacion selectiva en TEST**, un workflow manual específico. Publica el par completo de Interest Rates usando el script existente, y verifica que las definiciones de Stocks Index no cambien. Comparte el bloqueo de ejecuciones con el workflow 03 para evitar que ambos publiquen simultáneamente en TEST.
+
+### Cambio visible preparado
+
+Se agregó al gráfico de Interest Rates el título **Interest Rates - prueba selectiva 01**. El cambio está en:
+
+`DataHub/Interest Rates.Report/definition/pages/d6883f2c3a65edcdb5a3/visuals/d229f2460c6ca65d9458/visual.json`
+
+Los cálculos y consultas del modelo no se modificaron. La selección de despliegue sigue siendo **reporte más modelo**: esta prueba todavía no evalúa publicar un reporte sin republicar su modelo. No se modificaron archivos locales de Stocks Index.
+
+### Qué compara y cómo lo hace
+
+Antes de publicar, `scripts/verify_stocks_unchanged.py` localiza el reporte y el modelo de Stocks Index en TEST. Ambos deben existir, sin duplicados por nombre y tipo. Obtiene sus definiciones mediante la API `getDefinition` y calcula una huella SHA-256 de cada parte decodificada. Una huella permite comparar contenido sin guardar las definiciones completas. Esta API usa POST para obtener la definición; no actualiza el ítem. Si Fabric responde que la operación continúa en segundo plano, el script espera su resultado. [API Get Item Definition](https://learn.microsoft.com/en-us/rest/api/fabric/core/items/get-item-definition), [operaciones asíncronas](https://learn.microsoft.com/en-us/rest/api/fabric/articles/long-running-operation).
+
+Después de publicar Interest Rates, repite la lectura y compara:
+
+- IDs del reporte y modelo de Stocks Index.
+- Nombres, descripciones y carpeta reportados por el inventario.
+- Rutas y huellas de todas las partes de las definiciones exportadas.
+
+El orden en que llegan las partes no afecta la comparación. El contenido de cada parte se compara byte por byte mediante su huella; no eliminamos campos ni normalizamos JSON/TMDL. Por eso cualquier diferencia de serialización también exige revisión, aunque luego resulte no ser un cambio funcional.
+
+La evidencia se guarda en `before.json` y `after.json`, dentro del artefacto descargable **stocks-index-comparison-…** de GitHub Actions, conservado durante 14 días. Contiene SHA de origen, IDs, metadatos y huellas, sin tokens ni las definiciones completas.
+
+Esta verificación no cubre datos importados, ownership, permisos, etiquetas de sensibilidad ni conexiones cloud. Tampoco detecta una escritura transitoria que termine dejando exactamente la misma definición. Demuestra igualdad del estado exportado antes y después de esta corrida, dentro de ese alcance.
+
+### Qué debe hacer el usuario ahora
+
+1. Revisar los cinco archivos preparados: workflow 04, script `verify_stocks_unchanged.py`, `tests/test_selectivity.py`, README y el `visual.json` indicado arriba. Llevarlos a `dev` mediante el procedimiento Git habitual.
+2. Como esta vez sí cambia contenido de `/DataHub`, sincronizar manualmente DataHub-Dev desde Git y revisar el título en el reporte de DEV. Si Fabric muestra conflictos, revisarlos antes de continuar.
+3. Llevar los cambios revisados de `dev` a `main` mediante PR. No publicar manualmente desde Desktop a TEST: el workflow debe ser quien aplique el cambio.
+4. Abrir **Actions → 04 - Verificar actualizacion selectiva en TEST → Run workflow**, seleccionar **main** y ejecutar. No hace falta ejecutar antes el workflow 03.
+5. Comprobar el paso **Comparar Stocks Index despues del despliegue**. Esperamos:
+
+```text
+SELECTIVITY OK: Stocks Index IDs, metadata and exported definition bytes are unchanged.
+```
+
+6. Comprobar que el inventario sigue mostrando cuatro artefactos y abrir el reporte Interest Rates en TEST: debe mostrar el nuevo título. Verificar el linaje y registrar si conserva datos, ownership y conexión después de la actualización. Un problema de refresh se registra por separado; su automatización sigue diferida.
+
+Si la captura inicial falla, el workflow no publica. Si falla la publicación, igualmente intenta comparar Stocks Index cuando ya existe una captura inicial, pero la ejecución sigue fallida. Si la comparación detecta cambios, marca error y guarda las huellas disponibles; no intenta rollback. Compartir el paso y el mensaje antes de repetir una corrida fallida.
+
+Para esta prueba, evitar cambios paralelos en TEST desde la UI u otras herramientas: el bloqueo del workflow solo coordina los workflows 03 y 04.
+
+### Comprobaciones locales
+
+Los tests de `tests/test_selectivity.py` usan respuestas simuladas y no llaman a Fabric. Se ejecutan con el Python del entorno del laboratorio:
+
+```powershell
+.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v
+```
+
+Que pasen las pruebas locales no sustituye ejecutar el workflow y revisar el resultado real en TEST.
+
+## 11. Próximas etapas
 
 | Etapa | Resultado esperado |
 | --- | --- |
 | Selección local | Entender exactamente qué dos ítems se publicarían. |
 | Publicación en TEST (validada) | Inventario, binding y reporte correctos; refresh validado después de configurar conexión y ownership manualmente. |
-| Base con ambos conjuntos | Cambiar Interest Rates y verificar que Stocks Index permanece intacto. |
+| Base con ambos conjuntos (confirmada) | Cuatro artefactos en TEST y linaje correcto de Stocks Index. |
+| Actualización selectiva (preparada) | Ejecutar workflow 04 y verificar nuevo título e igualdad de definiciones de Stocks Index. |
 | Ramas `dev` y `main` (ya configuradas) | DEV sincroniza `dev`; `main` prepara candidatos de release. |
 | Tag y SHA | Identificar una versión concreta de los archivos. |
 | Conexiones y ownership (diferido) | Automatizar la asignación de conexión y validar refresh con la identidad prevista para operar el modelo. |
